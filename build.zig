@@ -62,6 +62,7 @@ pub fn isPlatform(target: std.Target, platform: TargetPlatform) bool {
 }
 
 pub fn build(b: *Build) !void {
+    const opt_use_shared = b.option(bool, "shared", "Use sokol shared library (default: false)") orelse false;
     const opt_use_gl = b.option(bool, "gl", "Force OpenGL (default: false)") orelse false;
     const opt_use_gles3 = b.option(bool, "gles3", "Force OpenGL ES3 (default: false)") orelse false;
     const opt_use_wgpu = b.option(bool, "wgpu", "Force WebGPU (default: false, web only)") orelse false;
@@ -83,6 +84,7 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
         .backend = sokol_backend,
+        .use_shared = opt_use_shared,
         .use_wayland = opt_use_wayland,
         .use_x11 = opt_use_x11,
         .use_egl = opt_use_egl,
@@ -127,6 +129,7 @@ pub const LibSokolOptions = struct {
     target: Build.ResolvedTarget,
     optimize: OptimizeMode,
     backend: SokolBackend = .auto,
+    use_shared: bool = false,
     use_egl: bool = false,
     use_x11: bool = true,
     use_wayland: bool = false,
@@ -149,7 +152,12 @@ pub fn buildLibSokol(b: *Build, options: LibSokolOptions) !*Build.Step.Compile {
         "sokol_glue.c",
         "sokol_fetch.c",
     };
-    const lib = b.addStaticLibrary(.{
+    const lib = if (options.use_shared) b.addSharedLibrary(.{
+        .name = "sokol_clib",
+        .target = options.target,
+        .optimize = options.optimize,
+        .link_libc = true,
+    }) else b.addStaticLibrary(.{
         .name = "sokol_clib",
         .target = options.target,
         .optimize = options.optimize,
